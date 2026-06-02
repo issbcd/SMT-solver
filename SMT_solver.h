@@ -11,12 +11,14 @@
 
 typedef struct partial_interpretation{
     int *atributions; 
+    int tam_variavel;/*medimos o tamanho limite do array aqui*/
 }partial_interpretation;
 
 typedef struct tree 
 { 
     int variable; 
     int value; 
+    bool eh_folha; /*retorna 1 ou 0 p saber se chegamos a uma decisao final*/
 
     struct tree* left; 
     struct tree* right; 

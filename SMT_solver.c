@@ -92,62 +92,116 @@ partial_interpretation unir(partial_interpretation *inicio, int total_literals, 
     return new_atributions;//retorna p nova estrutura
 
 }
-/*aqui checamos as arvores matematicas*/
-bool checagem(partial_interpretation *options, teoria_smt *teoria){
 
+int L_valor_exp(char *expressao, char *op_comparacao){/*essa funcao encontra os numeros e o operador*/
+    int valor1, valor2;
+    char op_mat;
+
+    char aux[256];/*vms fzr uma copia pq qnd cortar c o token, pode perder a string*/
+    strncpy(aux, expressao, op_comparacao - expressao);
+    aux[op_comparacao - expressao] = '\0';
+    if (sscanf(aux, "%d %c %d", &valor1, &op_mat, &valor2)==3){
+        switch(op_mat){
+        case '+': return valor1 + valor2;
+        case '-': return valor1 - valor2;
+        case '*': return valor1 * valor2;
+        case '/': 
+            if(valor2 != 0){
+            return valor1/valor2;
+        } 
+
+        else{
+            printf("Erro!! Divisao por zero!\n");
+            return 0;
+        }
+
+        default:
+        printf("Erro!! Operador nao conhecido!!");
+        return 0;
+        }
+    }
+    return atoi(aux);/*essa funcao garante que o codigo vai ler o valor numerico, somente*/
+}
+/*aqui checamos as arvores matematicas*/
+bool checagem(partial_interpretation *options, teoria_smt *teoria) {
+    if (teoria == NULL || teoria->expressoes == NULL) return true;
+
+    for (int i = 1; i <= teoria->total_expressoes; i++) {
+        if (teoria->expressoes[i] != NULL && options->atributions[i] == 1) {
+            char *exp = teoria->expressoes[i];
+            char *sinal = strpbrk(exp, "<>=!"); 
+            
+            if (sinal != NULL) {
+                int calculo = L_valor_exp(exp, sinal);
+                int constante = atoi(sinal + 1);
+                
+                if (strncmp(sinal, ">", 1) == 0 && !(calculo > constante)){
+                    return false;
+                } 
+                if (strncmp(sinal, "<", 1) == 0 && !(calculo < constante)){
+                    return false;
+                } 
+                if (strncmp(sinal, "==", 2) == 0 && !(calculo == constante)){
+                    return false;
+                } 
+            }
+        }
+    }
     return true;
 }
-tree *resposta_smt(CNF *formula, partial_interpretation now, teoria_smt *teoria){
-    tree *node = (tree*)malloc(sizeof(tree));/*alocar memoria pro no atual*/
-    /*pra começar, inicializamos os dois lados, esquerda e direita, com NULL*/
-    node->left = NULL;
-    node->right = NULL;
 
+tree *no_da_arvore(){
+    tree *nv_no = (tree*)malloc(sizeof(tree));
+    nv_no->left = NULL;
+    nv_no->right = NULL;
+    nv_no->value = -1;/*-1 pq o resultado ainda nn foi definido*/
+    return nv_no;
+    }
 
-    if(eh_sat (formula, &now)){/*se o SAT deu verdadeiro, vemos se a mametatica tb da*/
-        if(checagem (&now, teoria) == true){
-        node->value = 1;
-    }//ou seja a logica tb deu vdd, 
-        else{
-            return node;/*retorna o nó*/
+tree *calcular_smt(CNF *formula, partial_interpretation now_interpretation, teoria_smt *teoria){
+    tree *no_now = no_da_arvore();
+
+    if(eh_sat(formula, &now_interpretation)){/*ver se a logica booleana eh vdd*/
+        if(checagem(&now_interpretation, teoria) == true){/*ver se a parte matematica eh vdd tb*/
+            no_now->value = 1;/*satisfaz*/
+            return no_now;
         }
     }
 
-    if(eh_unsat(formula, &now)){/*usando o msm raciocinio, vamos considerar que nao seja satisfeita a formula*/
-    /*retornarmos o nó e definimos o valor como zero, ou seja erro/falha/falso*/
-    node->value = 0;
-    return node;
+    if(eh_unsat(formula, &now_interpretation)){/*ver se eh impossivel*/
+        no_now->value = 0; /*eh impossivel*/
+        return no_now;
     }
 
-    int xi = -1; /*declarando xi = -1 garantimos que nao assuma valores de lixo de memória, é tb um valor impossível para o nosso problema, o q facilita a resolucao de problemas */
+    int teste_variavel = -1;
 
-    /*criamos um array para percorrer todos os casos que nao estao dentro do caso base 1 ou 2*/
-    for (int i = 1; i <= formula->total_literals; i++){/*o array vai bater todas as atribuicoes e ele comeca com i = 1 pois estamos usando variaveis x1, x2... nao exisitndo variavel x0, ja q o zero significa o fim de linha clausula e ao considerar, no malloc, o total_literals + 1, a gnt deixa o indice 0 vazio*/ 
-        if (now.atributions[i] == UNDEFINED){
-            xi = i; /*guardamos o indice em xi e interrompemos o loop pq achamos um valor pra ser testado*/
+    for(int i = 1; i <= formula->total_literals; i++){
+        if (now_interpretation.atributions[i] == UNDEFINED){
+            teste_variavel = i;
             break;
         }
     }
-        if(xi == - 1){/*coloquei esse if pq se xi for -1, temos q sair antes de salvar o valor inválido do nó e antes de chamar unir*/
-            node->value = 0;
-            return node;
-        }
 
-        node->variable = xi;/*assim, garantimos q chegamos aqui c um xi válido. aqui a gnt salva a variavel excolhida p fzr a analise direita e esquerda*/
+    if(teste_variavel == -1){
+        no_now->value = 0;
+        return no_now;
+    }
 
-    partial_interpretation L_true = unir(&now, formula->total_literals, 1, xi);/*criamos, entao uma nova funcao atribuindo a xi o valor de vdd (1)*/
-    node->left = resposta_smt(formula, L_true, teoria);/*acao recursiva pra esquerda*/
-    free(L_true.atributions);
+    no_now->variable = teste_variavel;
 
-    /*mesma coisa p lado direito, mas considerando q seja falso, uma vez q as opcoes sao apenas vdd ou falso*/
-    partial_interpretation R_false = unir(&now, formula->total_literals, 0,xi);
-    node->right = resposta_smt(formula, R_false, teoria);
-    free(R_false.atributions);
-    /*sendo o nó o resultado da uniao dos filho, se a esquerda ou a direita der 1, ent o nó resulta em 1*/
-    node->value = node->left->value || node->right->value;
-    
-    return node;
-}
+    partial_interpretation caso_vdd = unir(&now_interpretation, formula->total_literals, 1, teste_variavel);
+    no_now->left = calcular_smt(formula, caso_vdd, teoria);
+    free(caso_vdd.atributions);
+
+    partial_interpretation caso_falso = unir(&now_interpretation, formula->total_literals, 0, teste_variavel);
+    no_now->right = calcular_smt(formula, caso_falso, teoria);
+    free(caso_falso.atributions);
+
+    // O resultado do nó é verdadeiro se pelo menos um dos lados for verdadeiro
+    no_now->value = no_now->left->value || no_now->right->value;
+
+    return no_now;
+    }
 
 void free_tree (tree *node){/*criei essa void pq o free() libera um bloco por vez, ou seja, daria memory leak pq nao iria percorrer tds os nos da arvore, liberaria so a raiz. a free_tree desce recursivamente e sobe liberando nó por nó*/
         if (node == NULL){
@@ -175,9 +229,6 @@ void free_cnf(CNF *formula){/*com o msm raciocínio, essa void percorre as duas 
     }
     free(formula);
 }
-
-/*função imprimir recebe a árvore e o total de literais
-faz uma busca de profundidade*/
 bool imprimir(tree *node, int total_literals) 
 {
     if(node == NULL) //se o no da raiz é nulo retorna falso

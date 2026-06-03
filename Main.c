@@ -1,3 +1,7 @@
+#include "DIMACS.h"
+#include "SMT_solver.h"
+#include <stdio.h>
+#include <stdlib.h>
 
 int main(){
 
@@ -7,7 +11,7 @@ int main(){
     teoria-> total_expressoes = 0;
     teoria->expressoes = NULL; /*inicializacao segura da teoria, garante q tudo ta zerado*/
     
-    readcnffile("arquivo.cnf", formula, teoria);//chama funcao para leitura do arquivo
+    readcnffile("arquivo.cnf", formula, teoria);//chama funcao para leitura do arquivo    
     
     if (formula->clauses == NULL && teoria->expressoes == NULL){
         printf("Erro: Arquivo vazio ou nao encontrado.\n");
@@ -22,7 +26,7 @@ printf("------------------------\n");
     partial_interpretation options = inicio_partial_interpretation(formula); //inicializaçao da interpretacao parcial
     
     /*a gnt comeca a teoria vazia p nn dar erro*/
-   tree *resposta = calcular_smt(formula, options, teoria);
+   tree *resposta = resposta_smt(formula, options, teoria);
 
    if (resposta != NULL && resposta->value == 1){
     printf("SAT\n");

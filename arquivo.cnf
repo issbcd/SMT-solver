@@ -1,0 +1,7 @@
+c Exemplo de caso de teste SMT
+p cnf 3 2
+1 2 0
+-2 3 0
+e 1 10 + 5 = 
+e 2 2 * x < 12
+e 3 z < 0

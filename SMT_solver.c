@@ -107,17 +107,15 @@ int L_valor_exp(char *expressao, char *op_comparacao){/*essa funcao encontra os 
         case '*': return valor1 * valor2;
         case '/': 
             if(valor2 != 0){
-            return valor1/valor2;
-        } 
-
-        else{
-            printf("Erro!! Divisao por zero!\n");
-            return 0;
-        }
-
+                return valor1/valor2;
+            }    
+            else{
+                printf("Erro!! Divisao por zero!\n");
+                return 0;
+            }
         default:
-        printf("Erro!! Operador nao conhecido!!");
-        return 0;
+            printf("Erro!! Operador nao conhecido!!");  
+            return 0;
         }
     }
     return atoi(aux);/*essa funcao garante que o codigo vai ler o valor numerico, somente*/
@@ -158,7 +156,7 @@ tree *no_da_arvore(){
     return nv_no;
     }
 
-tree *calcular_smt(CNF *formula, partial_interpretation now_interpretation, teoria_smt *teoria){
+tree *resposta_smt(CNF *formula, partial_interpretation now_interpretation, teoria_smt *teoria){
     tree *no_now = no_da_arvore();
 
     if(eh_sat(formula, &now_interpretation)){/*ver se a logica booleana eh vdd*/
@@ -190,11 +188,11 @@ tree *calcular_smt(CNF *formula, partial_interpretation now_interpretation, teor
     no_now->variable = teste_variavel;
 
     partial_interpretation caso_vdd = unir(&now_interpretation, formula->total_literals, 1, teste_variavel);
-    no_now->left = calcular_smt(formula, caso_vdd, teoria);
+    no_now->left = resposta_smt(formula, caso_vdd, teoria);
     free(caso_vdd.atributions);
 
     partial_interpretation caso_falso = unir(&now_interpretation, formula->total_literals, 0, teste_variavel);
-    no_now->right = calcular_smt(formula, caso_falso, teoria);
+    no_now->right = resposta_smt(formula, caso_falso, teoria);
     free(caso_falso.atributions);
 
     // O resultado do nó é verdadeiro se pelo menos um dos lados for verdadeiro

@@ -45,10 +45,14 @@ int valor;
 }expmat;
 
 typedef struct teoria_smt{
-    expmat **expressoes;
+    char **expressoes;
     int total_expressoes;
 }teoria_smt;
 
+void readcnffile (const char* filename, CNF* problem, teoria_smt *teoria);
+bool imprimir(tree *node, int total_literals);
+void free_tree(tree *node);
+void free_cnf(CNF *formula);
 partial_interpretation inicio_partial_interpretation(CNF *formula);
 bool eh_sat(CNF *formula, partial_interpretation *options);
 bool eh_unsat(CNF *formula, partial_interpretation *options);

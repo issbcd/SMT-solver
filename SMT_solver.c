@@ -263,21 +263,21 @@ int checagem_lia(int *atrib_bool, TeoriaLIA *teoria){
     }
 
     for (int i = 0; i < teoria->total; i++){
-        if (atrib_bool[i + 1] != 1){
-            continue;
-        }
         if (!avalia_lia(&teoria->restricoes[i], teoria->valores_int)){
             return i; /*retorna qual foi a restricao causou o problema*/
         }
     }
     return -1; /*fora do for: nenhuma restricao foi violada*/
 }
+
 tree *no_da_arvore(){
     tree *nv_no = (tree*)malloc(sizeof(tree));
     nv_no->left = NULL;
     nv_no->right = NULL;
-    nv_no->value = -1;/*-1 pq o resultado ainda nn foi definido*/
-    nv_no->variable = -1; /*nenhuma variavel doi associada ainda*/
+    nv_no->value = -1;
+    nv_no->variable = -1;
+    nv_no->solucao = NULL;
+    nv_no->n_vars = 0;
     return nv_no;
     }
 
@@ -287,14 +287,20 @@ tree *resposta_smt(CNF *formula, partial_interpretation now_interpretation, Teor
     if(eh_sat(formula, &now_interpretation)){/*ver se a logica booleana eh vdd*/
     int conferelia = checagem_lia(now_interpretation.atributions, teoria);
     
-        if (conferelia == -1){/*tanto o sat quanto a teoria nn tiveram problemas, ent a solucao foi encontrada*/
-            no_now->value = 1;
-            return no_now;
+    if (conferelia == -1){
+        no_now->value = 1;
+        int n = formula->total_literals;
+        no_now->n_vars = n;
+        no_now->solucao = malloc(sizeof(int) * (n + 1));
+
+        for (int i = 0; i <= n; i++){
+            no_now->solucao[i] = now_interpretation.atributions[i];
         }
-    no_now->value = 0;
-    no_now->variable = conferelia;
-    return no_now;
-}
+
+        return no_now;
+    }
+    //para o backtracking dá certo, não podemos retornar aqui!! o codigo precisa continuar
+    }
 
     if(eh_unsat(formula, &now_interpretation)){/*ver se eh impossivel*/
         no_now->value = 0; /*eh impossivel*/
@@ -331,15 +337,19 @@ tree *resposta_smt(CNF *formula, partial_interpretation now_interpretation, Teor
     return no_now;
     }
 
-void free_tree (tree *node){/*criei essa void pq o free() libera um bloco por vez, ou seja, daria memory leak pq nao iria percorrer tds os nos da arvore, liberaria so a raiz. a free_tree desce recursivamente e sobe liberando nó por nó*/
-        if (node == NULL){
-            return;
-        }
-
-        free_tree(node->left);
-        free_tree(node->right);
-        free (node);
+void free_tree(tree *node){
+    if (node == NULL){
+        return;
     }
+
+    free_tree(node->left);
+    free_tree(node->right);
+
+    if (node->solucao != NULL){
+        free(node->solucao); /*libera o array de atribuicoes salvo, se existir — so nos SAT terao esse campo preenchido*/
+    }
+    free(node);
+}
 
 void free_cnf(CNF *formula){/*com o msm raciocínio, essa void percorre as duas listas e libera cada no antes de liberar a struct externa, todas as clausulas e evita memory leak*/
     clause *current_clause = formula->clauses;
@@ -357,37 +367,29 @@ void free_cnf(CNF *formula){/*com o msm raciocínio, essa void percorre as duas 
     }
     free(formula);
 }
-bool imprimir(tree *node, int total_literals) 
-{
-    if(node == NULL) //se o no da raiz é nulo retorna falso
-    {
+
+bool imprimir(tree *node, int total_literals){
+
+    if (node == NULL){/*arvore vazia ou chegou no fim de um galho sem solucao*/
         return false;
     }
 
-    //se for uma folha (nao tem filhos) e for sat, executa esse if
-    if(node->value == 1 && node->left == NULL && node->right == NULL)  
-    {
+    if (node->value == 1 && node->solucao != NULL){/*encontrou um no marcado como sat q tem a foto das atribuicoes salva*/
         printf("Configuracao encontrada:\n");
-        return true; 
+
+        for (int i = 1; i <= total_literals; i++){
+            printf("x%d = %d\n", i, node->solucao[i]); /*imprime cada variavel e seu valor diretamente do array salvo*/
+        }
+
+        return true;
     }
 
-    if(node->left != NULL && node->left->value == 1){/*nao sendo uma folha, vms analisar o lado esquerdo (1) */
-        if (imprimir(node->left, total_literals)){
-            if (node->variable != -1){
-                printf("%d = 1\n", node->variable); /*foi p esquerda, a variavel atual foi testada como 1*/
-            } 
-            return true;
-        }
-    }
-    
-    if(node->right != NULL && node->right->value == 1){/*nao sendo uma folha, vms analisar o lado direito (0) */
-        if (imprimir(node->right, total_literals)){
-            if (node->variable != -1){
-                printf("%d = 0\n", node->variable);/*foi p direita, a variavel atual foi testada como 0*/
-            }
-            return true;
-        }
-    }
+    /*se esse no nao for a solucao, desce pelos filhos procurando um q seja*/
+    if (imprimir(node->left, total_literals))  return true; /*tenta o lado esquerdo primeiro (atribuicao = 1)*/
+    if (imprimir(node->right, total_literals)) return true; /*se nn achou, tenta o lado direito (atribuicao = 0)*/
+
+    return false; /*nem esse no nem seus filhos tem solucao*/
+}
     
     return false;
 }

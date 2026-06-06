@@ -40,6 +40,8 @@ typedef struct partial_interpretation{
 typedef struct tree{ 
     int variable; 
     int value; 
+    int *solucao;
+    int n_vars;
     struct tree* left; 
     struct tree* right; 
 } tree;
@@ -51,7 +53,7 @@ partial_interpretation unir(partial_interpretation *inicio, int total_literals, 
 
 /*declaracao das funcoes da TeoriaLIA*/
 bool parse_expressao_lia(const char *entrada, ExpressaoLIA *out, int n_vars);
-bool avaliar_lia (const ExpressaoLIA *exp, int *valores);
+bool avalia_lia (const ExpressaoLIA *exp, int *valores);
 int checagem_lia(int *atrib_bool, TeoriaLIA *teoria);
 
 /*funcoes da arvore de busca e a execucao principal*/

@@ -1,3 +1,4 @@
+//atenção!!! esse arquivo é apenas um exemplo explicativo
 c exemplo: (b1 v b2) ^ (-b1 v b3)  //*c = comentario, q é ignorado pelo leitor
 p cnf 3 2 2   //* cabeçalho: 3 variavei booleanas, 2 clausulas, 2 variaveis inteiras
 1 2 0   //* clausula (b1 v b2), terminada em 0

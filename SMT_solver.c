@@ -6,7 +6,13 @@
 #include <stdbool.h>
 #include <ctype.h>
 
-partial_interpretation inicio_partial_interpretation(CNF *formula){//a função chama struct cnf como parametro e aloca memória para a formula, além de percorrer a lista e declara como undefined e retornamos a variavel criada 
+/**
+ * Inicializa uma interpretação parcial, alocando memória e definindo 
+ * todas as atribuições iniciais como UNDEFINED.
+ * * @param formula Ponteiro para a fórmula CNF de referência.
+ * @return Estrutura de interpretação parcial inicializada.
+ */
+partial_interpretation inicio_partial_interpretation(CNF *formula){
     partial_interpretation new_options;
     
     new_options.atributions = malloc(sizeof(int) *(formula->total_literals + 1));
@@ -17,83 +23,104 @@ partial_interpretation inicio_partial_interpretation(CNF *formula){//a função 
     return new_options;
 }
 
+/**
+ * Verifica se a fórmula CNF é satisfeita (SAT) pelas atribuições atuais.
+ * * @param formula Ponteiro para a fórmula CNF.
+ * @param options Ponteiro para as atribuições de variáveis atuais.
+ * @return true se todas as cláusulas forem satisfeitas, false caso contrário.
+ */
 bool eh_sat(CNF *formula, partial_interpretation *options){
-    clause * clauses_now = formula->clauses; //primeira clausula da forumula
+    clause * clauses_now = formula->clauses; 
 
-    while(clauses_now != NULL){ //vamos navegar pelas clausulas enquanto houver
-        bool satisfeita = false; //é falso até que se prove o contrario
-        literal_node * literal_now = clauses_now->literals; //primeiro literal da clausula
+    while(clauses_now != NULL){ 
+        bool satisfeita = false; 
+        literal_node * literal_now = clauses_now->literals; 
 
-        while(literal_now != NULL){ //navega pelos literais
-            int valores = options->atributions[abs(literal_now->value)]; //busca no array qual valor foi atribuido na variavel (usa o abs pois se a variavel vier negada sera com o sinal -, entao o modulo tira esse sinal para que possamos acessar o array corretamente))
+        while(literal_now != NULL){ 
+            int valores = options->atributions[abs(literal_now->value)]; 
 
             if(valores !=UNDEFINED){
-                if((literal_now->value > 0 && valores == 1) || (literal_now->value < 0 && valores == 0)){ //se o numero do literal for maior que zero e a atribuicao for verdadeira (1) ou se o numero do literal for menor que zero e a atribuição for falsa retorna verdadeira 
-                    satisfeita = true; // a clausula foi atendida, pelo menos um literal é verdadeiro
-                    break; //interrompe o loop de literais da clausula
+                if((literal_now->value > 0 && valores == 1) || (literal_now->value < 0 && valores == 0)){ 
+                    satisfeita = true; 
+                    break; 
                 }
             }
-            literal_now = literal_now->next; //se o literal nao for verdadeiro vai para o proximo
+            literal_now = literal_now->next; 
         } 
-            if(!satisfeita) // se nenhum literal for verdadeiro, retorna falso
+            if(!satisfeita) 
             {
                 return false;
             }
-        clauses_now = clauses_now->next; // proxima clausula
+        clauses_now = clauses_now->next; 
     }   
-    return true; //se saiu do loop sem dar "return false" é verdadeira
+    return true; 
 }
-/*a funcao vai retornar booleano tb, chama os msms parametros da eh_sat*/
-bool eh_unsat(CNF *formula, partial_interpretation *options){/*vamos verificar se tem algum caso completamente falso*/
-/*novamente iniciamos c a primeira clausula e o ponteiro apontará p ela*/
+
+/**
+ * Verifica se a fórmula CNF é insatisfatível (UNSAT) pelas atribuições atuais.
+ * Uma fórmula é UNSAT se contiver pelo menos uma cláusula onde todos os 
+ * literais avaliados sejam falsos e não haja literais indefinidos.
+ * * @param formula Ponteiro para a fórmula CNF.
+ * @param options Ponteiro para as atribuições atuais.
+ * @return true se a fórmula for comprovadamente UNSAT, false caso contrário.
+ */
+bool eh_unsat(CNF *formula, partial_interpretation *options){
 clause *clauses_now = formula->clauses;
 
 while(clauses_now != NULL){
-    /*se presume q ela seja falsa até q se prove verdadeira e chamamos a lista encadeada atual que será analisada*/
     bool clause_still_valid = false;
     literal_node *literal_now = clauses_now->literals;
 
-    while (literal_now != NULL){/*ou seja, enquanto tiver literais pra analise dentro dessa clausula*/
-        int valores = options->atributions[abs(literal_now->value)];/*novamnete, como no eh_sat, vamos usar o abs p considerar o modulo caso a atribuicao seja negativa*/
+    while (literal_now != NULL){
+        int valores = options->atributions[abs(literal_now->value)];
     
-    if (valores == UNDEFINED){/*se tiver valoresw indefinidos, nao foram testados ainda, ent podem ser verdadeiros*/
+    if(valores == UNDEFINED){
         clause_still_valid = true;
-        break;/*mantem a calsula por enquanto e quebra o loop*/
+        break;
     }
 
-    /*esse if diz que se o literal for >0 e verdadeiro (1) ou se o literal for <0 e falso, entao a calsula eh vdd e corta o loop*/
     if((literal_now->value > 0 && valores == 1) || (literal_now->value < 0 && valores == 0)){
         clause_still_valid = true;
         break;
     }
-        literal_now = literal_now->next;/*se tiver acusado falso, pula para o prox literal*/
+        literal_now = literal_now->next;
 }
     if(!clause_still_valid){
-        return true;/*se dps de tudo, ainda continua falsa, eh um caso insoluvel e retorna true pq a formula toda eh unsat nesse caminho*/
+        return true;
     }
-    clauses_now = clauses_now->next; /*avanca p proxima clasula*/
+    clauses_now = clauses_now->next; 
 }
-return false; //se percorreu tudo e nao se deu total falsa, nao da p dizer q é unsat (pode ser indefinida e depender de outras coisas)
+return false; 
 }
 
-/*vms unir o sat e o unsat pra poder a arvore ter onde percorrer ou saber onde deve voltar*/
+/**
+ * Cria uma nova interpretação parcial clonando a inicial e aplicando um 
+ * novo valor booleano a uma variável específica (passo de ramificação).
+ * * @param inicio Ponteiro para a interpretação parcial base.
+ * @param total_literals Total de literais na fórmula.
+ * @param value Valor a ser atribuído (0 ou 1).
+ * @param xi Índice da variável que receberá o valor.
+ * @return Nova estrutura de interpretação parcial com a alteração.
+ */
 partial_interpretation unir(partial_interpretation *inicio, int total_literals, int value, int xi){
-    /*repito o processo da primeira funcao, mas agr uso o valor inicial e aplico 0 ou q na variavel xi*/
-    partial_interpretation new_atributions;/*crio a variavel nova e em seguida aloco memoria no array interno*/
+    partial_interpretation new_atributions;
     
     new_atributions.atributions = malloc(sizeof(int) *(total_literals + 1));
 
-    for (int i = 0; i < total_literals + 1; i++){/*os dados de inicio vao pra o new_atributions*/
+    for(int i = 0; i < total_literals + 1; i++){
         new_atributions.atributions[i] = inicio->atributions[i];
     }
-    new_atributions.atributions[xi] = value;/*definir o valor na variavel que ta sendo testada*/
-    return new_atributions;//retorna p nova estrutura
-
+    new_atributions.atributions[xi] = value;
+    return new_atributions;
 }
-/*aqui vai substituir a funcao L_valor_exp do codigo original e precisamos de uma funcao q transforme a string numa struct que consiga ler os coeficientes, operador e a constante
-as variaveis serao escritas como x<indice>, o coeficiente q nn aparece é 1 (tipo"X1 = 1*X1), o sinal negativo vai direto e os espaços sao pulados(e ignorados)*/
 
-static const char *ler_operador(const char *s, Operador *op){/*por ser static, nn aparece fora desse arquivo, o q deixa o nome livre p ser assumido por outra funcao enquanto, msm assim, cumpre com os aspectos determinados aqui*/
+/**
+ * Função interna para fazer o parse do operador relacional LIA a partir de uma string.
+ * * @param s String que aponta para o início do operador.
+ * @param op Ponteiro onde o operador identificado será armazenado.
+ * @return Ponteiro para o caractere imediatamente após o operador, ou NULL se inválido.
+ */
+static const char *ler_operador(const char *s, Operador *op){
 if(strncmp(s, "<=", 2) == 0){
     *op = OP_MENOR_IGUAL;
     return s + 2;
@@ -126,110 +153,109 @@ if(*s == '>'){
 return NULL;
 }
 
-/*agr vms receber a string e preencher a struct expressaoLIA*/
+/**
+ * Converte uma string de texto em uma estrutura ExpressaoLIA.
+ * Realiza a leitura de coeficientes, variáveis (formato x<id>) e do lado direito.
+ * * @param entrada String contendo a expressão LIA (ex: "2*x1 - x2 <= 5").
+ * @param out Ponteiro de saída onde a estrutura preenchida será guardada.
+ * @param n_vars Número total de variáveis.
+ * @return true se o parse foi bem-sucedido, false em caso de erro de sintaxe.
+ */
 bool parse_expressao_lia(const char *entrada, ExpressaoLIA *out, int n_vars){
     memset(out, 0, sizeof(*out));
     out->n_vars = n_vars;
 
     const char *caractere = entrada;
 
-    /*le o lado esquerdo: termos como 2*x1, x2, -3*x2 */
-    while (*caractere){
-        while (*caractere == ' ') caractere++; /*pula espacos*/
+    while(*caractere){
+        while(*caractere == ' ') caractere++; 
 
-        /*chegou no operador: lado esquerdo acabou*/
-        if (*caractere == '<' || *caractere == '>' || *caractere == '=' || *caractere == '!'){
+        if(*caractere == '<' || *caractere == '>' || *caractere == '=' || *caractere == '!'){
             break;
         }
-        if (*caractere == '\0'){
+        if(*caractere == '\0'){
             break;
         }
 
-        /*le o sinal do termo*/
         int sinal = 1;
         if(*caractere == '+'){
             sinal =  1;
             caractere++;
         }
-        else if (*caractere == '-'){
+        else if(*caractere == '-'){
             sinal = -1;
             caractere++;
         }
 
-        while (*caractere == ' '){
+        while(*caractere == ' '){
             caractere++;
         }
 
-        /*le o coeficiente numerico*/
         int coef = 0;
         bool tem_coef = false;
-        while (isdigit(*caractere)){
+        while(isdigit(*caractere)){
             coef = coef * 10 + (*caractere - '0');
             tem_coef = true;
             caractere++;
         }
 
-        /*pula o '*' entre coeficiente e variavel*/
-        if (*caractere == '*'){
+        if(*caractere == '*'){
             caractere++;
         } 
 
-        /*le a variavel: deve ser x<indice>*/
-        if (*caractere != 'x'){
+        if(*caractere != 'x'){
             fprintf(stderr, "Esperava 'x<n>', recebi '%c'\n", *caractere);
             return false;
         }
         caractere++;
 
         int indice = 0;
-        if (!isdigit(*caractere)){
+        if(!isdigit(*caractere)){
             fprintf(stderr, "Indice ausente\n");
             return false;
         }
-        while (isdigit(*caractere)){
+        while(isdigit(*caractere)){
             indice = indice * 10 + (*caractere - '0');
             caractere++;
         }
 
-        if (indice < 1 || indice > MAX_VARS){
+        if(indice < 1 || indice > MAX_VARS){
             fprintf(stderr, "Indice %d fora do intervalo\n", indice);
             return false;
         }
 
-        if (!tem_coef) coef = 1; /*coeficiente omitido = 1*/
+        if(!tem_coef) coef = 1; 
         out->coeficientes[indice - 1] += sinal * coef;
     }
 
-    /*le o operador */
-    while (*caractere == ' '){
+    while(*caractere == ' '){
         caractere++;
     } 
 
     const char *dps = ler_operador(caractere, &out->op);
-    if (!dps){
+    if(!dps){
         fprintf(stderr, "Operador nao encontrado\n");
         return false;
     }
     caractere = dps;
 
-    /*le a constante no lado direito */
-    while (*caractere == ' '){
+    while(*caractere == ' '){
         caractere++;
     } 
 
     int negativo = 1;
-    if (*caractere == '-'){
+    if(*caractere == '-'){ 
         negativo = -1;
         caractere++; }
     else if (*caractere == '+'){
         caractere++; }
 
     int ladoD = 0;
-    if (!isdigit(*caractere)){
+    if(!isdigit(*caractere)){
         fprintf(stderr, "Constante ausente no lado direito\n");
         return false;
     }
-    while (isdigit(*caractere)){
+    while(isdigit(*caractere)){
         ladoD = ladoD * 10 + (*caractere - '0');
         caractere++;
     }
@@ -238,14 +264,19 @@ bool parse_expressao_lia(const char *entrada, ExpressaoLIA *out, int n_vars){
     return true;
 }
 
-/*aqui checamos as expressoes matematicas, receberemos os termos ja parseados e vamos conferir se a expressao eh vdd*/
+/**
+ * Avalia matematicamente se uma expressão LIA é verdadeira ou falsa com base nos valores inteiros atuais.
+ * * @param exp Ponteiro para a expressão LIA estruturada.
+ * @param valores Vetor com os valores inteiros das variáveis aritméticas.
+ * @return true se a relação aritmética for satisfeita, false caso contrário.
+ */
 bool avalia_lia(const ExpressaoLIA *exp, int *valores){
     int soma = 0;
 
-    for (int i = 0; i < exp->n_vars; i++){
-        soma += exp->coeficientes[i] * valores[i];/*multiplica cada coeficiente pelo valor da sua variavel*/
+    for(int i = 0; i < exp->n_vars; i++){
+        soma += exp->coeficientes[i] * valores[i];
     }
-    switch (exp->op){
+    switch(exp->op){
         case OP_MENORQ:      return soma <  exp->constante;
         case OP_MAIORQ:      return soma >  exp->constante;
         case OP_MENOR_IGUAL: return soma <= exp->constante;
@@ -253,23 +284,37 @@ bool avalia_lia(const ExpressaoLIA *exp, int *valores){
         case OP_IGUAL:       return soma == exp->constante;
         case OP_DIFERENTE:   return soma != exp->constante;
     }
-    return false;/*se passar por todos os cases e nn retornar nd, vai retornar false*/
+    return false;
 }
 
-/*vms agr checar tudo: vms percorrer tds as restricoes e ver se houve alguma violacao, vai retornar -1 se tudo tiver ok e retorna o indice da restricao com problema caso tenha alguma violacao - o q ajuda a corrigir no backtracking*/
+/**
+ * Verifica a consistência da teoria LIA em relação às atribuições booleanas atuais.
+ * Detecta conflitos entre o valor que a variável booleana assumiu e a avaliação da restrição.
+ * * @param atrib_bool Vetor de atribuições booleanas atuais.
+ * @param teoria Ponteiro para a estrutura que guarda as restrições LIA.
+ * @return O índice da restrição que causou violação (conflito), ou -1 se estiver consistente.
+ */
 int checagem_lia(int *atrib_bool, TeoriaLIA *teoria){
-    if (teoria == NULL || teoria->restricoes == NULL){
-        return -1;/*sem teoria, nn tem o q checar*/
+    if(teoria == NULL || teoria->restricoes == NULL){
+        return -1;
     }
 
-    for (int i = 0; i < teoria->total; i++){
-        if (!avalia_lia(&teoria->restricoes[i], teoria->valores_int)){
-            return i; /*retorna qual foi a restricao causou o problema*/
+    for(int i = 0; i < teoria->total; i++){
+        int val_bool = atrib_bool[i + 1];
+        if (val_bool != UNDEFINED) {
+            bool eval = avalia_lia(&teoria->restricoes[i], teoria->valores_int);
+            if ((val_bool == 1 && !eval) || (val_bool == 0 && eval)) {
+                return i; 
+            }
         }
     }
-    return -1; /*fora do for: nenhuma restricao foi violada*/
+    return -1; 
 }
 
+/**
+ * Aloca e inicializa um novo nó vazio para a árvore de decisão SMT.
+ * * @return Ponteiro para o nó da árvore recém-criado.
+ */
 tree *no_da_arvore(){
     tree *nv_no = (tree*)malloc(sizeof(tree));
     nv_no->left = NULL;
@@ -281,29 +326,37 @@ tree *no_da_arvore(){
     return nv_no;
     }
 
+/**
+ * Executa o algoritmo DPLL estendido para SMT (Lazy SMT).
+ * Combina a busca booleana com checagens da teoria LIA via backtracking.
+ * * @param formula Ponteiro para a fórmula CNF.
+ * @param now_interpretation Interpretação booleana parcial do escopo atual.
+ * @param teoria Ponteiro para a teoria LIA associada.
+ * @return Árvore de decisão representando o espaço de busca e a eventual solução.
+ */
 tree *resposta_smt(CNF *formula, partial_interpretation now_interpretation, TeoriaLIA *teoria){
     tree *no_now = no_da_arvore();
 
-    if(eh_sat(formula, &now_interpretation)){/*ver se a logica booleana eh vdd*/
+    if(eh_sat(formula, &now_interpretation)){
     int conferelia = checagem_lia(now_interpretation.atributions, teoria);
     
-    if (conferelia == -1){
+    if(conferelia == -1){
         no_now->value = 1;
         int n = formula->total_literals;
         no_now->n_vars = n;
         no_now->solucao = malloc(sizeof(int) * (n + 1));
 
-        for (int i = 0; i <= n; i++){
+        for(int i = 0; i <= n; i++){
             no_now->solucao[i] = now_interpretation.atributions[i];
         }
 
         return no_now;
     }
-    //para o backtracking dá certo, não podemos retornar aqui!! o codigo precisa continuar
+    
     }
 
-    if(eh_unsat(formula, &now_interpretation)){/*ver se eh impossivel*/
-        no_now->value = 0; /*eh impossivel*/
+    if(eh_unsat(formula, &now_interpretation)){
+        no_now->value = 0; 
         return no_now;
     }
 
@@ -312,7 +365,7 @@ tree *resposta_smt(CNF *formula, partial_interpretation now_interpretation, Teor
     for(int i = 1; i <= formula->total_literals; i++){
         if (now_interpretation.atributions[i] == UNDEFINED){
             teste_variavel = i;
-            break;/*vai pegar a primeira indefinida encontrada*/
+            break;
         }
     }
 
@@ -323,20 +376,25 @@ tree *resposta_smt(CNF *formula, partial_interpretation now_interpretation, Teor
 
     no_now->variable = teste_variavel;
 
+    // Explora ramo verdadeiro (atribuição = 1)
     partial_interpretation caso_vdd = unir(&now_interpretation, formula->total_literals, 1, teste_variavel);
     no_now->left = resposta_smt(formula, caso_vdd, teoria);
-    free(caso_vdd.atributions);/*libera a copia apos ser usada*/
+    free(caso_vdd.atributions);
 
+    // Explora ramo falso (atribuição = 0)
     partial_interpretation caso_falso = unir(&now_interpretation, formula->total_literals, 0, teste_variavel);
     no_now->right = resposta_smt(formula, caso_falso, teoria);
     free(caso_falso.atributions);
 
-    // O resultado do nó é verdadeiro se pelo menos um dos lados for verdadeiro
     no_now->value = no_now->left->value || no_now->right->value;
 
     return no_now;
     }
 
+/**
+ * Libera recursivamente toda a memória alocada para a árvore de decisão SMT.
+ * * @param node Ponteiro para o nó raiz/atual da árvore.
+ */
 void free_tree(tree *node){
     if (node == NULL){
         return;
@@ -346,12 +404,17 @@ void free_tree(tree *node){
     free_tree(node->right);
 
     if (node->solucao != NULL){
-        free(node->solucao); /*libera o array de atribuicoes salvo, se existir — so nos SAT terao esse campo preenchido*/
+        free(node->solucao); 
     }
     free(node);
 }
 
-void free_cnf(CNF *formula){/*com o msm raciocínio, essa void percorre as duas listas e libera cada no antes de liberar a struct externa, todas as clausulas e evita memory leak*/
+/**
+ * Libera recursivamente toda a memória alocada para a estrutura CNF.
+ * Limpa literais, cláusulas e evita vazamento de memória (memory leaks).
+ * * @param formula Ponteiro para a fórmula CNF a ser desalocada.
+ */
+void free_cnf(CNF *formula){
     clause *current_clause = formula->clauses;
     while(current_clause != NULL){
         literal_node *literal = current_clause->literals;
@@ -368,28 +431,31 @@ void free_cnf(CNF *formula){/*com o msm raciocínio, essa void percorre as duas 
     free(formula);
 }
 
+/**
+ * Percorre a árvore de decisão em busca de um nó que contenha uma solução válida (SAT).
+ * Se encontrado, imprime a configuração das variáveis no terminal.
+ * * @param node Ponteiro para o nó atual da árvore.
+ * @param total_literals Quantidade total de literais a serem impressos.
+ * @return true se uma solução foi encontrada e impressa, false caso contrário.
+ */
 bool imprimir(tree *node, int total_literals){
 
-    if (node == NULL){/*arvore vazia ou chegou no fim de um galho sem solucao*/
+    if(node == NULL){
         return false;
     }
 
-    if (node->value == 1 && node->solucao != NULL){/*encontrou um no marcado como sat q tem a foto das atribuicoes salva*/
+    if(node->value == 1 && node->solucao != NULL){
         printf("Configuracao encontrada:\n");
 
-        for (int i = 1; i <= total_literals; i++){
-            printf("x%d = %d\n", i, node->solucao[i]); /*imprime cada variavel e seu valor diretamente do array salvo*/
+        for(int i = 1; i <= total_literals; i++){
+            printf("x%d = %d\n", i, node->solucao[i]); 
         }
 
         return true;
     }
 
-    /*se esse no nao for a solucao, desce pelos filhos procurando um q seja*/
-    if (imprimir(node->left, total_literals))  return true; /*tenta o lado esquerdo primeiro (atribuicao = 1)*/
-    if (imprimir(node->right, total_literals)) return true; /*se nn achou, tenta o lado direito (atribuicao = 0)*/
+    if(imprimir(node->left, total_literals))  return true; 
+    if(imprimir(node->right, total_literals)) return true; 
 
-    return false; /*nem esse no nem seus filhos tem solucao*/
-}
-    
-    return false;
+    return false; 
 }

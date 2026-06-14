@@ -2,6 +2,8 @@
 #include "SMT_solver.h"
 #include <stdio.h>
 #include <stdlib.h>
+
+
 int main(){
 
     CNF *formula = (CNF*)malloc(sizeof(CNF)); //aloca memoria e inicializa a formula
@@ -48,7 +50,6 @@ if(teoria->n_vars > 0 && teoria->valores_int){
     printf("SAT\n");
     imprimir(resposta, formula->total_literals);
    }
-
    else{
     printf("UNSAT\n");
    }

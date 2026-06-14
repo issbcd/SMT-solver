@@ -5,30 +5,49 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct TeoriaLIA TeoriaLIA;/*vms apenas declarar seu nome aqui por conta da readcnffile, e na biblioteca do smt aprofundamos ela*/
+/** * Declaração opaca avançada da estrutura TeoriaLIA.
+ * Permite que a função de leitura use o tipo como parâmetro antes de sua 
+ * definição completa no resolvedor SMT.
+ */
+typedef struct TeoriaLIA TeoriaLIA;
 
-// nó para cada literal 
+/**
+ * @struct literal_node
+ * @brief Elemento de uma lista encadeada que representa um literal booleano.
+ * O valor armazenado indica a variável e sua polaridade (negativa se valor < 0).
+ */
 typedef struct literal_node 
 {
-    int value;
-    struct literal_node* next;
+    int value;                  /**< Valor numérico identificador do literal. */
+    struct literal_node* next;  /**< Ponteiro para o próximo literal da cláusula. */
 } literal_node;
 
-/* clause (clausula) representa uma única cláusula do nosso arquivo cnf com alguns literais booleanos. 
-na lógica booleana, eles são valores representativos para verdadeiro ou falso.*/
+/**
+ * @struct clause
+ * @brief Representa uma única cláusula na fórmula CNF (disjunção de literais).
+ */
 typedef struct clause{
-    literal_node* literals; // literais booleanos 
-    int size; // tamanho da nossa cláusula
-    struct clause* next; // ponteiro para a próxima cláusula na lista encadeada
-
+    literal_node* literals;     /**< Ponteiro para o primeiro nó da lista de literais. */
+    int size;                   /**< Quantidade de literais presentes nesta cláusula. */
+    struct clause* next;        /**< Ponteiro para a próxima cláusula do problema. */
 } clause;
 
+/**
+ * @struct CNF
+ * @brief Estrutura que encapsula a fórmula lógica global em Forma Normal Conjuntiva.
+ */
 typedef struct CNF{
-    clause* clauses; // todas as nossas cláusulas
-    int total_clauses; // número total de cláusulas
-    int total_literals; // número total de literais
+    clause* clauses;            /**< Ponteiro para a cabeça da lista de cláusulas. */
+    int total_clauses;          /**< Contagem total de cláusulas registradas. */
+    int total_literals;         /**< Contagem total de variáveis/literals distintos. */
 } CNF;
 
+/**
+ * Lê e processa um arquivo de entrada no formato DIMACS estendido para SMT.
+ * * @param filename Caminho ou nome do arquivo de entrada.
+ * @param formula Ponteiro para a estrutura CNF que receberá os dados lógicos.
+ * @param teoria Ponteiro para o contexto que receberá as restrições da teoria LIA.
+ */
 void readcnffile (const char *filename, CNF *formula, TeoriaLIA *teoria);
 
 #endif
